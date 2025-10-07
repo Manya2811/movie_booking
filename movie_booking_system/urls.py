@@ -10,7 +10,6 @@ schema_view = get_schema_view(
       title="Movie Ticket Booking API",
       default_version='v1',
       description="API for a Movie Ticket Booking System",
-      contact=openapi.Contact(email="contact@example.com"),
    ),
    public=True,
    permission_classes=(permissions.AllowAny,),

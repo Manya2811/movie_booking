@@ -10,6 +10,8 @@ from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from .models import Booking 
 from .serializers import BookingSerializer 
+from drf_yasg.utils import swagger_auto_schema
+from .serializers import BookingSerializer, BookingRequestSerializer
 
 class SignupView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -88,3 +90,35 @@ class MyBookingsView(generics.ListAPIView):
 
     def get_queryset(self):
         return Booking.objects.filter(user=self.request.user)        
+
+
+class BookSeatView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(request_body=BookingRequestSerializer)
+    def post(self, request, id): # 'id' here is the Show ID
+        try:
+            show = Show.objects.get(pk=id)
+        except Show.DoesNotExist:
+            return Response({'error': 'Show not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        seat_number = request.data.get('seat_number')
+
+        if not seat_number:
+            return Response({'error': 'Seat number is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            # Rule: Prevent overbooking
+            booked_seats_count = Booking.objects.filter(show=show, status='booked').count()
+            if booked_seats_count >= show.total_seats:
+                return Response({'error': 'This show is sold out.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Rule: Prevent double booking
+            is_seat_booked = Booking.objects.filter(show=show, seat_number=seat_number, status='booked').exists()
+            if is_seat_booked:
+                return Response({'error': 'This seat is already booked.'}, status=status.HTTP_400_BAD_REQUEST)
+
+            # If all rules pass, create the booking
+            booking = Booking.objects.create(user=request.user, show=show, seat_number=seat_number)
+            serializer = BookingSerializer(booking)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)

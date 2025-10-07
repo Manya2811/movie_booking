@@ -27,3 +27,6 @@ class BookingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
         fields = '__all__'    
+
+class BookingRequestSerializer(serializers.Serializer):
+    seat_number = serializers.CharField(max_length=10)
